@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using BepInEx;
+using BepInEx.Bootstrap;
 using UnityEngine;
 
 namespace ValheimDraft
@@ -17,7 +18,10 @@ namespace ValheimDraft
         public const string PluginName = "ValheimDraft";
         public const string PluginVersion = "0.1.0";
 
+        private const string BpcGUID = "shudnal.BuildPiecesCustomized";
+
         private bool _dumped;
+        private bool _bpcTriggered;
 
         private void Awake()
         {
@@ -26,18 +30,72 @@ namespace ValheimDraft
 
         private void Update()
         {
-            if (_dumped || ZNetScene.instance == null)
-                return;
+            if (!_dumped && ZNetScene.instance != null)
+            {
+                _dumped = true;
+                try
+                {
+                    DumpInternal();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[{PluginName}] dump failed: {e}");
+                }
+            }
 
-            _dumped = true;
-            try
+            // Separate flag/condition from the dump above: Terminal (the
+            // console) isn't guaranteed ready on the same frame ZNetScene
+            // is, so this polls independently instead of riding on _dumped.
+            if (!_bpcTriggered && Terminal.instance != null && ZNetScene.instance != null)
             {
-                DumpInternal();
+                _bpcTriggered = true;
+                try
+                {
+                    TriggerBpcSaveAllAndCollect();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[{PluginName}] bpcsaveall automation failed: {e}");
+                }
             }
-            catch (Exception e)
+        }
+
+        // bpcsaveall is a plain Terminal.ConsoleCommand registered by
+        // BuildPiecesCustomized, so it can be triggered the same way typing
+        // it would. That mod's output directory is hardcoded to
+        // Paths.ConfigPath/<its GUID> (not configurable), so "colocating"
+        // output means copying its files into our own Documents output
+        // after triggering the save, not redirecting where it writes.
+        private static void TriggerBpcSaveAllAndCollect()
+        {
+            if (!Chainloader.PluginInfos.ContainsKey(BpcGUID))
             {
-                Debug.LogError($"[{PluginName}] dump failed: {e}");
+                Debug.Log($"[{PluginName}] {BpcGUID} not installed, skipping bpcsaveall.");
+                return;
             }
+
+            Terminal.instance.TryRunCommand("bpcsaveall");
+
+            var bpcDir = Path.Combine(Paths.ConfigPath, BpcGUID);
+            if (!Directory.Exists(bpcDir))
+            {
+                Debug.LogWarning($"[{PluginName}] bpcsaveall didn't produce output at {bpcDir}.");
+                return;
+            }
+
+            var destDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                PluginName, BpcGUID);
+            Directory.CreateDirectory(destDir);
+
+            var copied = 0;
+            foreach (var file in Directory.GetFiles(bpcDir, "*.json"))
+            {
+                File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), overwrite: true);
+                copied++;
+            }
+
+            Debug.Log($"[{PluginName}] copied {copied} bpcsaveall files to {destDir}");
         }
 
         private static void DumpInternal()
