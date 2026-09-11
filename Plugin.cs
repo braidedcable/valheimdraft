@@ -1,4 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using BepInEx;
+using HarmonyLib;
+using UnityEngine;
 
 namespace ValheimDraft
 {
@@ -12,11 +18,98 @@ namespace ValheimDraft
 
         private void Awake()
         {
-            // TODO: on scene load, iterate ZNetScene.instance.m_prefabs, read each
-            // Piece's bounds + child snap-point transforms, and serialize to JSON
-            // matching the schema in valheim-planner-plan.md. This is the
-            // go/no-go gate spike, not part of scaffolding.
+            new Harmony(PluginGUID).PatchAll();
             Logger.LogInfo($"{PluginName} loaded.");
         }
+
+        // Runs once ZNetScene has populated its prefab list.
+        [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
+        private static class ZNetScene_Awake_Patch
+        {
+            private static void Postfix(ZNetScene __instance)
+            {
+                try
+                {
+                    Dump(__instance);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[{PluginName}] dump failed: {e}");
+                }
+            }
+        }
+
+        private static void Dump(ZNetScene znetScene)
+        {
+            var pieces = new List<PieceData>();
+
+            foreach (var prefab in znetScene.m_prefabs)
+            {
+                if (prefab.GetComponent<Piece>() == null)
+                    continue;
+
+                var bounds = GetBounds(prefab);
+
+                // ASSUMPTION TO VALIDATE: Valheim's convention (per Jotunn's piece
+                // tutorial) is that snap points are child transforms named
+                // "_snappoint*". Confirm this holds by checking the dumped
+                // snapPoints against an in-game piece before trusting the data.
+                var snapPoints = prefab.GetComponentsInChildren<Transform>(true)
+                    .Where(t => t.name.StartsWith("_snappoint"))
+                    .Select(t => new SnapPointData { pos = t.localPosition, rot = t.localRotation })
+                    .ToList();
+
+                pieces.Add(new PieceData
+                {
+                    prefab = prefab.name,
+                    bounds = bounds.size,
+                    snapPoints = snapPoints
+                });
+            }
+
+            var json = JsonUtility.ToJson(new DumpOutput { pieces = pieces }, prettyPrint: true);
+            var path = Path.Combine(Paths.PluginPath, PluginName, "pieces-dump.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, json);
+
+            Debug.Log($"[{PluginName}] dumped {pieces.Count} pieces to {path}");
+        }
+
+        private static Bounds GetBounds(GameObject go)
+        {
+            var colliders = go.GetComponentsInChildren<Collider>(true);
+            if (colliders.Length > 0)
+            {
+                var b = colliders[0].bounds;
+                foreach (var c in colliders.Skip(1)) b.Encapsulate(c.bounds);
+                return b;
+            }
+
+            var renderers = go.GetComponentsInChildren<Renderer>(true);
+            var rb = renderers[0].bounds;
+            foreach (var r in renderers.Skip(1)) rb.Encapsulate(r.bounds);
+            return rb;
+        }
+    }
+
+    [Serializable]
+    internal class SnapPointData
+    {
+        public Vector3 pos;
+        public Quaternion rot;
+    }
+
+    [Serializable]
+    internal class PieceData
+    {
+        public string prefab;
+        public Vector3 bounds;
+        public List<SnapPointData> snapPoints;
+    }
+
+    [Serializable]
+    internal class DumpOutput
+    {
+        public List<PieceData> pieces;
     }
 }
