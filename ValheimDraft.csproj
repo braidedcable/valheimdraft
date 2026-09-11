@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>ValheimDraft</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>ValheimDraft</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Set VALHEIM_INSTALL to your local Valheim install directory
+    (the one containing valheim_Data/ and BepInEx/), e.g.:
+      export VALHEIM_INSTALL="$HOME/.steam/steam/steamapps/common/Valheim"
+    Adjust the Jotunn.dll path below if your mod manager put it elsewhere.
+  -->
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(VALHEIM_INSTALL)/BepInEx/core/BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(VALHEIM_INSTALL)/BepInEx/core/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Jotunn">
+      <HintPath>$(VALHEIM_INSTALL)/BepInEx/plugins/Jotunn/Jotunn.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_valheim">
+      <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
