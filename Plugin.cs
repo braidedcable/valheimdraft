@@ -51,15 +51,13 @@ namespace ValheimDraft
 
                 var bounds = GetBounds(prefab);
 
-                // ASSUMPTION TO VALIDATE: Valheim's convention (per Jotunn's piece
-                // tutorial) is that snap points are child transforms named
-                // "_snappoint*". Confirmed wrong against real data (0 matches on
-                // wood_floor, which definitely has snap points) — dumping every
-                // child name too (DIAGNOSTIC, remove once the real convention is
-                // identified) so we can see the actual naming from real prefabs.
-                var allChildren = prefab.GetComponentsInChildren<Transform>(true);
-                var snapPoints = allChildren
-                    .Where(t => t.name.StartsWith("_snappoint"))
+                // Real convention per dumped data (wood_floor): child names like
+                // "$hud_snappoint_corner 1" — not "_snappoint" as Jotunn's piece
+                // tutorial implied. Matching "snappoint" anywhere, case-insensitive,
+                // to tolerate both this and the "_snappoint" convention if other
+                // pieces use it.
+                var snapPoints = prefab.GetComponentsInChildren<Transform>(true)
+                    .Where(t => t.name.IndexOf("snappoint", StringComparison.OrdinalIgnoreCase) >= 0)
                     .Select(t => new SnapPointData { pos = t.localPosition, rot = t.localRotation })
                     .ToList();
 
@@ -67,8 +65,7 @@ namespace ValheimDraft
                 {
                     prefab = prefab.name,
                     bounds = bounds.size,
-                    snapPoints = snapPoints,
-                    childNames = allChildren.Select(t => t.name).ToList()
+                    snapPoints = snapPoints
                 });
             }
 
@@ -166,12 +163,6 @@ namespace ValheimDraft
                 AppendQuat(sb, p.snapPoints[i].rot);
                 sb.Append('}');
             }
-            sb.Append("],\"childNames\":[");
-            for (var i = 0; i < p.childNames.Count; i++)
-            {
-                if (i > 0) sb.Append(',');
-                sb.Append('"').Append(Escape(p.childNames[i])).Append('"');
-            }
             sb.Append("]}");
         }
 
@@ -208,6 +199,5 @@ namespace ValheimDraft
         public string prefab;
         public Vector3 bounds;
         public List<SnapPointData> snapPoints;
-        public List<string> childNames;
     }
 }
