@@ -18,10 +18,6 @@
       <HintPath>$(VALHEIM_INSTALL)/BepInEx/core/BepInEx.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(VALHEIM_INSTALL)/BepInEx/core/0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="Jotunn">
       <HintPath>$(VALHEIM_INSTALL)/BepInEx/plugins/Jotunn/Jotunn.dll</HintPath>
       <Private>false</Private>

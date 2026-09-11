@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BepInEx;
-using HarmonyLib;
+using Jotunn.Managers;
 using UnityEngine;
 
 namespace ValheimDraft
@@ -18,32 +18,27 @@ namespace ValheimDraft
 
         private void Awake()
         {
-            new Harmony(PluginGUID).PatchAll();
-            Logger.LogInfo($"{PluginName} loaded.");
+            PrefabManager.OnVanillaPrefabsAvailable += Dump;
+            Logger.LogInfo($"{PluginName} loaded, waiting on OnVanillaPrefabsAvailable.");
         }
 
-        // Runs once ZNetScene has populated its prefab list.
-        [HarmonyPatch(typeof(ZNetScene), "Awake")]
-        private static class ZNetScene_Awake_Patch
+        private static void Dump()
         {
-            private static void Postfix(ZNetScene __instance)
+            try
             {
-                try
-                {
-                    Dump(__instance);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError($"[{PluginName}] dump failed: {e}");
-                }
+                DumpInternal();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[{PluginName}] dump failed: {e}");
             }
         }
 
-        private static void Dump(ZNetScene znetScene)
+        private static void DumpInternal()
         {
             var pieces = new List<PieceData>();
 
-            foreach (var prefab in znetScene.m_prefabs)
+            foreach (var prefab in ZNetScene.instance.m_prefabs)
             {
                 if (prefab.GetComponent<Piece>() == null)
                     continue;
