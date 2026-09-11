@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using BepInEx;
 using UnityEngine;
 
@@ -22,9 +24,6 @@ namespace ValheimDraft
             Logger.LogInfo($"{PluginName} loaded, polling for ZNetScene.");
         }
 
-        // Poll instead of hooking a library event whose exact firing
-        // semantics (once? per-scene? before or after ZNetScene exists?)
-        // turned out to not match what OnVanillaPrefabsAvailable's name implied.
         private void Update()
         {
             if (_dumped || ZNetScene.instance == null)
@@ -69,7 +68,7 @@ namespace ValheimDraft
                 });
             }
 
-            var json = JsonUtility.ToJson(new DumpOutput { pieces = pieces }, prettyPrint: true);
+            var json = ToJson(pieces);
             // Valheim's exe is 32-bit; writing under Program Files (x86) without
             // admin rights gets silently redirected by Windows' file
             // virtualization to %LOCALAPPDATA%\VirtualStore\.... Write to
@@ -98,26 +97,75 @@ namespace ValheimDraft
             foreach (var r in renderers.Skip(1)) rb.Encapsulate(r.bounds);
             return rb;
         }
+
+        // Hand-rolled instead of JsonUtility: JsonUtility doesn't reliably
+        // serialize a list whose elements themselves contain another list
+        // (pieces -> each piece's snapPoints), silently dropping/mangling
+        // output instead of throwing. This schema is small and fixed, so
+        // writing it directly sidesteps that limitation entirely.
+        private static string ToJson(List<PieceData> pieces)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{\"pieces\":[");
+            for (var i = 0; i < pieces.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                AppendPiece(sb, pieces[i]);
+            }
+            sb.Append("]}");
+            return sb.ToString();
+        }
+
+        private static void AppendPiece(StringBuilder sb, PieceData p)
+        {
+            sb.Append("{\"prefab\":\"").Append(Escape(p.prefab)).Append("\",");
+            sb.Append("\"bounds\":");
+            AppendVec3(sb, p.bounds);
+            sb.Append(",\"snapPoints\":[");
+            for (var i = 0; i < p.snapPoints.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append("{\"pos\":");
+                AppendVec3(sb, p.snapPoints[i].pos);
+                sb.Append(",\"rot\":");
+                AppendQuat(sb, p.snapPoints[i].rot);
+                sb.Append('}');
+            }
+            sb.Append("]}");
+        }
+
+        private static void AppendVec3(StringBuilder sb, Vector3 v)
+        {
+            sb.Append("{\"x\":").Append(Num(v.x))
+              .Append(",\"y\":").Append(Num(v.y))
+              .Append(",\"z\":").Append(Num(v.z))
+              .Append('}');
+        }
+
+        private static void AppendQuat(StringBuilder sb, Quaternion q)
+        {
+            sb.Append("{\"x\":").Append(Num(q.x))
+              .Append(",\"y\":").Append(Num(q.y))
+              .Append(",\"z\":").Append(Num(q.z))
+              .Append(",\"w\":").Append(Num(q.w))
+              .Append('}');
+        }
+
+        private static string Num(float f) => f.ToString(CultureInfo.InvariantCulture);
+
+        private static string Escape(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 
-    [Serializable]
     internal class SnapPointData
     {
         public Vector3 pos;
         public Quaternion rot;
     }
 
-    [Serializable]
     internal class PieceData
     {
         public string prefab;
         public Vector3 bounds;
         public List<SnapPointData> snapPoints;
-    }
-
-    [Serializable]
-    internal class DumpOutput
-    {
-        public List<PieceData> pieces;
     }
 }

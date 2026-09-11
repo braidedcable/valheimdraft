@@ -38,10 +38,6 @@
       <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.JSONSerializeModule">
-      <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.JSONSerializeModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.PhysicsModule.dll</HintPath>
       <Private>false</Private>
