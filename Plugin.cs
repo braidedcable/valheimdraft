@@ -36,6 +36,15 @@ namespace ValheimDraft
 
         private static void DumpInternal()
         {
+            if (ZNetScene.instance == null)
+            {
+                // OnVanillaPrefabsAvailable also fires at scenes (e.g. main menu)
+                // before a world is loaded, when ZNetScene doesn't exist yet.
+                // Harmless — it'll fire again once you're actually in a world.
+                Debug.Log($"[{PluginName}] ZNetScene not ready yet, skipping this pass.");
+                return;
+            }
+
             var pieces = new List<PieceData>();
 
             foreach (var prefab in ZNetScene.instance.m_prefabs)
