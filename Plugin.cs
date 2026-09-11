@@ -56,15 +56,28 @@ namespace ValheimDraft
                 // tutorial implied. Matching "snappoint" anywhere, case-insensitive,
                 // to tolerate both this and the "_snappoint" convention if other
                 // pieces use it.
+                //
+                // Position/rotation are composed into the prefab ROOT's local
+                // space (same as GetBounds does for mesh corners), not taken as
+                // raw localPosition/localRotation — those are relative to each
+                // transform's immediate parent, which is wrong for any snap
+                // point nested deeper than a direct child of the root.
+                var worldToRoot = prefab.transform.worldToLocalMatrix;
+                var rootRotInverse = Quaternion.Inverse(prefab.transform.rotation);
                 var snapPoints = prefab.GetComponentsInChildren<Transform>(true)
                     .Where(t => t.name.IndexOf("snappoint", StringComparison.OrdinalIgnoreCase) >= 0)
-                    .Select(t => new SnapPointData { pos = t.localPosition, rot = t.localRotation })
+                    .Select(t => new SnapPointData
+                    {
+                        pos = worldToRoot.MultiplyPoint3x4(t.position),
+                        rot = rootRotInverse * t.rotation
+                    })
                     .ToList();
 
                 pieces.Add(new PieceData
                 {
                     prefab = prefab.name,
                     bounds = bounds.size,
+                    center = bounds.center,
                     snapPoints = snapPoints
                 });
             }
@@ -164,6 +177,8 @@ namespace ValheimDraft
             sb.Append("{\"prefab\":\"").Append(Escape(p.prefab)).Append("\",");
             sb.Append("\"bounds\":");
             AppendVec3(sb, p.bounds);
+            sb.Append(",\"center\":");
+            AppendVec3(sb, p.center);
             sb.Append(",\"snapPoints\":[");
             for (var i = 0; i < p.snapPoints.Count; i++)
             {
@@ -209,6 +224,7 @@ namespace ValheimDraft
     {
         public string prefab;
         public Vector3 bounds;
+        public Vector3 center;
         public List<SnapPointData> snapPoints;
     }
 }
