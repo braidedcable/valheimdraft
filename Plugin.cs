@@ -53,9 +53,12 @@ namespace ValheimDraft
 
                 // ASSUMPTION TO VALIDATE: Valheim's convention (per Jotunn's piece
                 // tutorial) is that snap points are child transforms named
-                // "_snappoint*". Confirm this holds by checking the dumped
-                // snapPoints against an in-game piece before trusting the data.
-                var snapPoints = prefab.GetComponentsInChildren<Transform>(true)
+                // "_snappoint*". Confirmed wrong against real data (0 matches on
+                // wood_floor, which definitely has snap points) — dumping every
+                // child name too (DIAGNOSTIC, remove once the real convention is
+                // identified) so we can see the actual naming from real prefabs.
+                var allChildren = prefab.GetComponentsInChildren<Transform>(true);
+                var snapPoints = allChildren
                     .Where(t => t.name.StartsWith("_snappoint"))
                     .Select(t => new SnapPointData { pos = t.localPosition, rot = t.localRotation })
                     .ToList();
@@ -64,7 +67,8 @@ namespace ValheimDraft
                 {
                     prefab = prefab.name,
                     bounds = bounds.size,
-                    snapPoints = snapPoints
+                    snapPoints = snapPoints,
+                    childNames = allChildren.Select(t => t.name).ToList()
                 });
             }
 
@@ -82,20 +86,51 @@ namespace ValheimDraft
             Debug.Log($"[{PluginName}] dumped {pieces.Count} pieces to {path}");
         }
 
-        private static Bounds GetBounds(GameObject go)
+        // Prefabs here are never instantiated into a live scene, so
+        // Collider.bounds / Renderer.bounds (computed by the physics/render
+        // systems for active objects) come back zero. Mesh.bounds is a
+        // static property of the mesh asset itself and Transform matrices
+        // are plain data regardless of active state, so both work on inert
+        // prefabs — combine every child mesh's local bounds into the root's
+        // local space via the transform hierarchy.
+        private static Bounds GetBounds(GameObject root)
         {
-            var colliders = go.GetComponentsInChildren<Collider>(true);
-            if (colliders.Length > 0)
+            var meshFilters = root.GetComponentsInChildren<MeshFilter>(true)
+                .Where(mf => mf.sharedMesh != null)
+                .ToArray();
+
+            var b = new Bounds();
+            var initialized = false;
+            var worldToRoot = root.transform.worldToLocalMatrix;
+
+            foreach (var mf in meshFilters)
             {
-                var b = colliders[0].bounds;
-                foreach (var c in colliders.Skip(1)) b.Encapsulate(c.bounds);
-                return b;
+                var mb = mf.sharedMesh.bounds;
+                var localToRoot = worldToRoot * mf.transform.localToWorldMatrix;
+
+                for (var xi = 0; xi < 2; xi++)
+                for (var yi = 0; yi < 2; yi++)
+                for (var zi = 0; zi < 2; zi++)
+                {
+                    var corner = new Vector3(
+                        xi == 0 ? mb.min.x : mb.max.x,
+                        yi == 0 ? mb.min.y : mb.max.y,
+                        zi == 0 ? mb.min.z : mb.max.z);
+                    var p = localToRoot.MultiplyPoint3x4(corner);
+
+                    if (!initialized)
+                    {
+                        b = new Bounds(p, Vector3.zero);
+                        initialized = true;
+                    }
+                    else
+                    {
+                        b.Encapsulate(p);
+                    }
+                }
             }
 
-            var renderers = go.GetComponentsInChildren<Renderer>(true);
-            var rb = renderers[0].bounds;
-            foreach (var r in renderers.Skip(1)) rb.Encapsulate(r.bounds);
-            return rb;
+            return b;
         }
 
         // Hand-rolled instead of JsonUtility: JsonUtility doesn't reliably
@@ -130,6 +165,12 @@ namespace ValheimDraft
                 sb.Append(",\"rot\":");
                 AppendQuat(sb, p.snapPoints[i].rot);
                 sb.Append('}');
+            }
+            sb.Append("],\"childNames\":[");
+            for (var i = 0; i < p.childNames.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append('"').Append(Escape(p.childNames[i])).Append('"');
             }
             sb.Append("]}");
         }
@@ -167,5 +208,6 @@ namespace ValheimDraft
         public string prefab;
         public Vector3 bounds;
         public List<SnapPointData> snapPoints;
+        public List<string> childNames;
     }
 }
