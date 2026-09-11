@@ -63,7 +63,13 @@ namespace ValheimDraft
             }
 
             var json = JsonUtility.ToJson(new DumpOutput { pieces = pieces }, prettyPrint: true);
-            var path = Path.Combine(Paths.PluginPath, PluginName, "pieces-dump.json");
+            // Valheim's exe is 32-bit; writing under Program Files (x86) without
+            // admin rights gets silently redirected by Windows' file
+            // virtualization to %LOCALAPPDATA%\VirtualStore\.... Write to
+            // Documents instead so the output lands where you actually look.
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                PluginName, "pieces-dump.json");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             File.WriteAllText(path, json);
 
