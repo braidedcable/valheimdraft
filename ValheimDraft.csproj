@@ -50,10 +50,6 @@
       <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.PhysicsModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="UnityEngine.RendererModule">
-      <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.RendererModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
   </ItemGroup>
 
 </Project>
