@@ -92,11 +92,19 @@ namespace ValheimDraft
         // local space via the transform hierarchy.
         private static Bounds GetBounds(GameObject root)
         {
-            var meshFilters = root.GetComponentsInChildren<MeshFilter>(true)
-                // Wear-state variants (New/Worn/Broken) sit as sibling subtrees,
-                // each with their own mesh, but only one is active by default
-                // (New) — including the others' meshes skews bounds badly.
-                .Where(mf => mf.sharedMesh != null && mf.gameObject.activeInHierarchy)
+            // Wear-state variants (New/Worn/Broken) sit as sibling subtrees,
+            // each with their own mesh — including all of them skews bounds
+            // badly. activeInHierarchy doesn't distinguish them (these
+            // prefabs are never instantiated, so WearNTear never runs to
+            // flip "New" active), so target the literal "New" child by name
+            // instead; fall back to the whole prefab for pieces with no such
+            // wear-state grouping at all.
+            var newVariant = root.GetComponentsInChildren<Transform>(true)
+                .FirstOrDefault(t => t.name == "New");
+            var searchRoot = newVariant != null ? newVariant.gameObject : root;
+
+            var meshFilters = searchRoot.GetComponentsInChildren<MeshFilter>(true)
+                .Where(mf => mf.sharedMesh != null)
                 .ToArray();
 
             var b = new Bounds();
