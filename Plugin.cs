@@ -23,7 +23,7 @@ namespace ValheimDraft
         }
 
         // Runs once ZNetScene has populated its prefab list.
-        [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
+        [HarmonyPatch(typeof(ZNetScene), "Awake")]
         private static class ZNetScene_Awake_Patch
         {
             private static void Postfix(ZNetScene __instance)

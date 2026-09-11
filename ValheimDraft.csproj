@@ -34,6 +34,10 @@
       <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(VALHEIM_INSTALL)/valheim_Data/Managed/UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
