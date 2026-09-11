@@ -5,6 +5,11 @@
     <AssemblyName>ValheimDraft</AssemblyName>
     <LangVersion>latest</LangVersion>
     <RootNamespace>ValheimDraft</RootNamespace>
+    <!-- Harmless: netstandard2.1's reference-assembly versions of
+         System.Net.Http/System.IO.Compression don't match what Valheim's
+         own assemblies expect. Compile-time-only; the game's real
+         assemblies are what actually load at runtime. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
   </PropertyGroup>
 
   <!--
