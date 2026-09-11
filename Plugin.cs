@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BepInEx;
-using Jotunn.Managers;
 using UnityEngine;
 
 namespace ValheimDraft
@@ -16,14 +15,22 @@ namespace ValheimDraft
         public const string PluginName = "ValheimDraft";
         public const string PluginVersion = "0.1.0";
 
+        private bool _dumped;
+
         private void Awake()
         {
-            PrefabManager.OnVanillaPrefabsAvailable += Dump;
-            Logger.LogInfo($"{PluginName} loaded, waiting on OnVanillaPrefabsAvailable.");
+            Logger.LogInfo($"{PluginName} loaded, polling for ZNetScene.");
         }
 
-        private static void Dump()
+        // Poll instead of hooking a library event whose exact firing
+        // semantics (once? per-scene? before or after ZNetScene exists?)
+        // turned out to not match what OnVanillaPrefabsAvailable's name implied.
+        private void Update()
         {
+            if (_dumped || ZNetScene.instance == null)
+                return;
+
+            _dumped = true;
             try
             {
                 DumpInternal();
@@ -36,15 +43,6 @@ namespace ValheimDraft
 
         private static void DumpInternal()
         {
-            if (ZNetScene.instance == null)
-            {
-                // OnVanillaPrefabsAvailable also fires at scenes (e.g. main menu)
-                // before a world is loaded, when ZNetScene doesn't exist yet.
-                // Harmless — it'll fire again once you're actually in a world.
-                Debug.Log($"[{PluginName}] ZNetScene not ready yet, skipping this pass.");
-                return;
-            }
-
             var pieces = new List<PieceData>();
 
             foreach (var prefab in ZNetScene.instance.m_prefabs)
