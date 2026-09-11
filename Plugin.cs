@@ -93,7 +93,10 @@ namespace ValheimDraft
         private static Bounds GetBounds(GameObject root)
         {
             var meshFilters = root.GetComponentsInChildren<MeshFilter>(true)
-                .Where(mf => mf.sharedMesh != null)
+                // Wear-state variants (New/Worn/Broken) sit as sibling subtrees,
+                // each with their own mesh, but only one is active by default
+                // (New) — including the others' meshes skews bounds badly.
+                .Where(mf => mf.sharedMesh != null && mf.gameObject.activeInHierarchy)
                 .ToArray();
 
             var b = new Bounds();
